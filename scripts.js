@@ -55,13 +55,10 @@ function showPopupVideo(markerId) {
     const video = popupVideo;
 
     function playVideo(index) {
-        const newSrc = `/Users/nd/Downloads/dlc_3.2/videos/${videoPaths[markerId][index]}`;
-        log(`動画変更前のSRC: ${video.src}`);
-        
-        video.src = newSrc;  // 新しい動画をセット
-        video.load();    // 再度読み込む
-        
+        video.src = `/Users/nd/Downloads/dlc_3.2/videos/${videoPaths[markerId][index]}`;
+        video.load();
         video.loop = true;
+
         video.play().catch(() => {
             log("自動再生に失敗しました。タップしてください。");
             showTapHint();
