@@ -58,9 +58,6 @@ function showPopupVideo(markerId) {
         const newSrc = `/Users/nd/Downloads/dlc_3.2/videos/${videoPaths[markerId][index]}`;
         log(`動画変更前のSRC: ${video.src}`);
         
-        video.pause();
-        video.src = "";  // srcを一度クリア
-        video.load();    // キャッシュをクリア
         video.src = newSrc;  // 新しい動画をセット
         video.load();    // 再度読み込む
         
