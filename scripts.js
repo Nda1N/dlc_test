@@ -4,10 +4,8 @@ const popupVideo = document.getElementById('popupVideo');
 const closeButton = document.getElementById('closeButton');
 const tapHint = document.getElementById('tapHint');
 const markerStatus = document.getElementById('markerStatus');
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
 
-// 動画のパスを指定
+// 動画のパス
 const videoPaths = {
     city1: ['human_tb.mov', 'human_t.mov'],
     city2: ['dog_tb.mov', 'dog_t.mov'],
@@ -27,62 +25,46 @@ const videoPaths = {
     ocean4: ['seaturtle_tb.mov', 'seaturtle_t.mov']
 };
 
+// マーカーごとの現在の動画インデックスを管理
+const markerVideoIndexes = {};
 
-// 再生中のフラグと現在の動画インデックス
-let isPlaying = false;
-let currentVideoIndex = 0;
-
-// 動画を事前に読み込む関数
+// 動画を事前に読み込む
 const preloadVideos = () => {
-    Object.values(videoPaths).forEach(paths => {
-        paths.forEach(path => {
+    Object.keys(videoPaths).forEach(markerId => {
+        markerVideoIndexes[markerId] = 0; // 各マーカーごとに初期化
+        videoPaths[markerId].forEach(path => {
             const video = document.createElement('video');
             video.src = path;
             video.preload = 'auto';
-            video.load();
             video.muted = true;
+            video.load();
         });
     });
 };
 
-// マーカー検出ステータスを更新する関数
-function updateMarkerStatus(show, isMarkerFound = false) {
-    if (isPlaying) return; // 映像再生中は表示しない
-
-    if (show) {
-        if (isMarkerFound) {
-            markerStatus.innerText = "マーカーを検出中...";
-            markerStatus.style.color = "green";
-        } else {
-            markerStatus.innerText = "マーカーが見つかりません";
-            markerStatus.style.color = "red";
-        }
-        markerStatus.style.display = "block";
-    } else {
-        markerStatus.style.display = "none";
-    }
-}
-
-// UIヒントを表示する関数
+// UIヒントを表示
 function showTapHint() {
     tapHint.style.display = 'block';
     tapHint.classList.add('show');
 }
 
 // 動画を再生する関数
-function showPopupVideo(videoPathsArray) {
-    if (isPlaying) return;
+function showPopupVideo(markerId) {
+    if (!videoPaths[markerId]) return;
 
     isPlaying = true;
-    currentVideoIndex = 0;
+    let currentVideoIndex = markerVideoIndexes[markerId];
     const video = popupVideo;
 
     function playVideo(index) {
-        video.src = videoPathsArray[index];
+        video.src = videoPaths[markerId][index];
         video.load();
         video.loop = true;
-        video.play();
-        showTapHint();
+
+        video.play().catch(() => {
+            console.warn("自動再生に失敗しました。タップしてください。");
+            showTapHint();
+        });
     }
 
     loadingCircle.style.display = 'block';
@@ -91,20 +73,22 @@ function showPopupVideo(videoPathsArray) {
     video.oncanplaythrough = () => {
         loadingCircle.style.display = 'none';
         videoPopup.style.display = 'block';
-        updateMarkerStatus(true, true); // 動画再生中はステータスを表示
         video.play();
     };
 
     video.onerror = () => {
+        console.error("動画読み込み失敗: " + video.src);
         setTimeout(() => {
-            playVideo(currentVideoIndex);
-        }, 500);
+            video.load();
+            video.play().catch(err => console.error("再生エラー:", err));
+        }, 1000);
     };
 
     playVideo(currentVideoIndex);
 
     video.addEventListener('click', () => {
-        currentVideoIndex = (currentVideoIndex + 1) % videoPathsArray.length;
+        currentVideoIndex = (currentVideoIndex + 1) % videoPaths[markerId].length;
+        markerVideoIndexes[markerId] = currentVideoIndex;
         playVideo(currentVideoIndex);
     });
 
@@ -113,7 +97,6 @@ function showPopupVideo(videoPathsArray) {
         video.currentTime = 0;
         videoPopup.style.display = 'none';
         isPlaying = false;
-        updateMarkerStatus(false); // ×ボタンを押したらステータス非表示
     });
 }
 
@@ -125,16 +108,8 @@ document.querySelectorAll('a-marker').forEach(marker => {
         const markerId = marker.id;
         if (videoPaths[markerId]) {
             setTimeout(() => {
-                showPopupVideo(videoPaths[markerId]);
+                showPopupVideo(markerId);
             }, 1000);
-        }
-
-        updateMarkerStatus(true, true);  // マーカーが見つかった時に緑色で表示
-    });
-
-    marker.addEventListener('markerLost', () => {
-        if (!isPlaying) {
-            updateMarkerStatus(true, false);  // マーカーが見つからない場合は赤色で表示
         }
     });
 });
@@ -142,5 +117,4 @@ document.querySelectorAll('a-marker').forEach(marker => {
 // ページロード時に動画を事前ロード
 window.addEventListener('load', () => {
     preloadVideos();
-    updateMarkerStatus(false); // 初期状態は非表示
 });
