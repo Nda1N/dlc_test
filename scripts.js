@@ -25,22 +25,18 @@ const videoPaths = {
     ocean4: ['seaturtle_tb.mov', 'seaturtle_t.mov']
 };
 
-// マーカーごとの現在の動画インデックスを管理
+// 各マーカーごとに現在の動画インデックスを管理
 const markerVideoIndexes = {};
 
-// 動画を事前に読み込む
-const preloadVideos = () => {
-    Object.keys(videoPaths).forEach(markerId => {
-        markerVideoIndexes[markerId] = 0; // 各マーカーごとに初期化
-        videoPaths[markerId].forEach(path => {
-            const video = document.createElement('video');
-            video.src = path;
-            video.preload = 'auto';
-            video.muted = true;
-            video.load();
-        });
-    });
-};
+// 初期化
+Object.keys(videoPaths).forEach(markerId => {
+    markerVideoIndexes[markerId] = 0;
+});
+
+// ログを出力する関数
+function log(message) {
+    console.log(`[DEBUG] ${message}`);
+}
 
 // UIヒントを表示
 function showTapHint() {
@@ -52,35 +48,40 @@ function showTapHint() {
 function showPopupVideo(markerId) {
     if (!videoPaths[markerId]) return;
 
+    log(`マーカー検出: ${markerId}`);
     isPlaying = true;
+
     let currentVideoIndex = markerVideoIndexes[markerId];
     const video = popupVideo;
 
     function playVideo(index) {
-        video.src = videoPaths[markerId][index];
+        video.src = `/Users/nd/Downloads/dlc_3.2/videos/${videoPaths[markerId][index]}`;
         video.load();
         video.loop = true;
 
         video.play().catch(() => {
-            console.warn("自動再生に失敗しました。タップしてください。");
+            log("自動再生に失敗しました。タップしてください。");
             showTapHint();
         });
+
+        log(`動画を変更: ${video.src}`);
     }
 
     loadingCircle.style.display = 'block';
     videoPopup.style.display = 'none';
 
     video.oncanplaythrough = () => {
+        log("動画が完全にロードされました");
         loadingCircle.style.display = 'none';
         videoPopup.style.display = 'block';
         video.play();
     };
 
     video.onerror = () => {
-        console.error("動画読み込み失敗: " + video.src);
+        log("動画の読み込みに失敗: " + video.src);
         setTimeout(() => {
             video.load();
-            video.play().catch(err => console.error("再生エラー:", err));
+            video.play().catch(err => log("再生エラー: " + err));
         }, 1000);
     };
 
@@ -93,6 +94,7 @@ function showPopupVideo(markerId) {
     });
 
     closeButton.addEventListener('click', () => {
+        log("動画を閉じる");
         video.pause();
         video.currentTime = 0;
         videoPopup.style.display = 'none';
@@ -100,21 +102,26 @@ function showPopupVideo(markerId) {
     });
 }
 
-// マーカーイベントを処理
+// **マーカーイベントを処理**
 document.querySelectorAll('a-marker').forEach(marker => {
     marker.addEventListener('markerFound', () => {
-        if (isPlaying) return;
-
         const markerId = marker.id;
-        if (videoPaths[markerId]) {
+        log(`markerFound: ${markerId}`);
+
+        if (!isPlaying) {
             setTimeout(() => {
                 showPopupVideo(markerId);
             }, 1000);
         }
     });
+
+    marker.addEventListener('markerLost', () => {
+        const markerId = marker.id;
+        log(`markerLost: ${markerId}`);
+    });
 });
 
-// ページロード時に動画を事前ロード
+// **ページロード時の処理**
 window.addEventListener('load', () => {
-    preloadVideos();
+    log("ページロード完了");
 });
